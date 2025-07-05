@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>智能股票投资分析系统</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- CSS -->
+    <link href="{{ url_for('static', filename='css/tailwind.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/fontawesome.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/inter.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/select2.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/select2-bootstrap.min.css') }}" rel="stylesheet">
+    
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/select2.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tailwind.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/echarts.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stockList.js') }}"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f4fe',
+                            100: '#dde5fd',
+                            200: '#c3d2fc',
+                            300: '#9db6f9',
+                            400: '#7390f4',
+                            500: '#4f69ef',
+                            600: '#3b45e4',
+                            700: '#3236cd',
+                            800: '#2b2ea5',
+                            900: '#282d82',
+                        },
+                        secondary: {
+                            50: '#f4f6fa',
+                            100: '#e8ecf5',
+                            200: '#ccd6ea',
+                            300: '#a0b4d8',
+                            400: '#708dc2',
+                            500: '#4e6fad',
+                            600: '#3d5691',
+                            700: '#334576',
+                            800: '#2d3b62',
+                            900: '#293354',
+                        }
+                    },
+                    animation: {
+                        'gradient': 'gradient 8s linear infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        gradient: {
+                            '0%, 100%': {
+                                'background-size': '200% 200%',
+                                'background-position': 'left center'
+                            },
+                            '50%': {
+                                'background-size': '200% 200%',
+                                'background-position': 'right center'
+                            }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(at 40% 20%, rgba(79, 105, 239, 0.1) 0px, transparent 50%),
+                radial-gradient(at 80% 0%, rgba(61, 86, 145, 0.1) 0px, transparent 50%),
+                radial-gradient(at 0% 50%, rgba(79, 105, 239, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #4f69ef 0%, #3d5691 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .select2-container {
+            width: 100% !important;
+        }
+
+        .select2-container--default .select2-selection--multiple {
+            border-radius: 0.75rem;
+            border: 1px solid rgba(203, 213, 225);
+            padding: 0.5rem;
+            min-height: 3rem;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #4f69ef;
+            box-shadow: 0 0 0 4px rgba(79, 105, 239, 0.1);
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(1rem); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+
+        .hover-card {
+            transition: all 0.3s ease;
+        }
+
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-gradient {
+            background: linear-gradient(90deg, #4f69ef, #3d5691);
+            background-size: 200% 200%;
+            animation: gradient 2s ease infinite;
+        }
+
+        .bigdrop {
+            min-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .select2-results {
+            max-height: 300px;
+        }
+        
+        .select2-result {
+            padding: 6px 8px;
+        }
+        
+        .select2-result:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .select2-highlighted {
+            background-color: #4f69ef !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+        <!-- 头部标题 -->
+        <div class="text-center mb-12 animate-float">
+            <h1 class="text-5xl font-bold gradient-text mb-4">智能股票投资分析系统</h1>
+            <p class="text-gray-600 text-lg">基于机器学习和强化学习的智能投资决策系统</p>
+        </div>
+
+        <!-- 在页面顶部添加连接信息 -->
+        <div class="bg-blue-50 p-4 rounded-lg mb-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M17.778 8.222c-4.296-4.296-11.26-4.296-15.556 0A1 1 0 01.808 6.808c5.076-5.077 13.308-5.077 18.384 0a1 1 0 01-1.414 1.414zM14.95 11.05a7 7 0 00-9.9 0 1 1 0 01-1.414-1.414 9 9 0 0112.728 0 1 1 0 01-1.414 1.414zM12.12 13.88a3 3 0 00-4.242 0 1 1 0 01-1.415-1.415 5 5 0 017.072 0 1 1 0 01-1.415 1.415zM9 16a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">WiFi 连接信息</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        网络名称: 8个8（网址：520.love）<br>
+                        密码: 88888888
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主卡片 -->
+        <div class="glass-card rounded-3xl shadow-xl overflow-hidden">
+            <!-- 输入表单部分 -->
+            <div class="p-8 lg:p-12">
+                <form id="analysisForm" class="space-y-8">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-base font-medium text-gray-700 mb-3">
+                                <i class="fas fa-search text-primary-500 mr-2"></i>选择股票
+                            </label>
+                            <div class="relative" id="stockSearchContainer">
+                                <div class="flex items-center border rounded-lg p-2 bg-white">
+                                    <!-- 已选股票标签区域 -->
+                                    <div class="flex flex-wrap gap-2 flex-1" id="selectedStocks">
+                                    </div>
+                                    <!-- 搜索输入框 -->
+                                    <input type="text" 
+                                           class="flex-1 outline-none min-w-[120px]" 
+                                           placeholder="输入股票代码、名称或拼音搜索"
+                                           id="stockSearchInput">
+                                </div>
+                                
+                                <!-- 搜索结果下拉框 -->
+                                <div class="absolute w-full mt-1 bg-white border rounded-lg shadow-lg hidden max-h-80 overflow-y-auto z-50" 
+                                     id="searchResults">
+                                </div>
+                                
+                                <!-- 隐藏的 input，用于保存实际的股票代码值 -->
+                                <input type="hidden" id="stockSelect" name="stocks">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-base font-medium text-gray-700 mb-3">
+                                <i class="fas fa-money-bill-wave text-primary-500 mr-2"></i>投资金额
+                            </label>
+                            <div class="relative rounded-xl shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 text-lg">¥</span>
+                                </div>
+                                <input type="number" id="investmentAmount" 
+                                    class="block w-full pl-10 pr-12 py-4 rounded-xl border-gray-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300"
+                                    placeholder="请输入投资金额">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                        class="w-full bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold py-4 px-8 rounded-xl
+                               transition duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg
+                               flex items-center justify-center space-x-3 group">
+                        <i class="fas fa-robot text-xl group-hover:animate-bounce"></i>
+                        <span class="text-lg">开始智能分析</span>
+                    </button>
+                </form>
+
+                <!-- 进度条 -->
+                <div class="mt-10 hidden" id="progressContainer">
+                    <div class="relative pt-1">
+                        <div class="overflow-hidden h-3 rounded-full bg-gray-100">
+                            <div class="progress-bar progress-gradient h-full rounded-full transition-all duration-300"
+                                style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-6">
+                        <div class="inline-flex items-center px-6 py-3 text-base font-semibold shadow-lg rounded-xl text-white bg-gradient-to-r from-primary-500 to-primary-700">
+                            <svg class="animate-spin -ml-1 mr-3 h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            正在进行智能分析...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果展示部分 -->
+            <div id="resultContainer" class="hidden border-t border-gray-100">
+                <div class="bg-gray-50/50 px-8 lg:px-12 py-8">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-3 text-2xl"></i>
+                        投资建议
+                    </h3>
+                    <div id="results" class="space-y-6"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // 检查股票数据是否正确加载
+            if (!window.stockList || !Array.isArray(window.stockList)) {
+                console.error('Stock list not loaded properly');
+                $('#stockSelect').after('<div class="text-red-500 text-sm mt-2">股票列表加载失败，请刷新页面重试</div>');
+                return;
+            }
+
+            // 股票搜索相关代码
+            (function() {
+                const searchInput = document.getElementById('stockSearchInput');
+                const searchResults = document.getElementById('searchResults');
+                const selectedStocksContainer = document.getElementById('selectedStocks');
+                const hiddenInput = document.getElementById('stockSelect');
+                let selectedStocks = new Set();
+                
+                // 创建股票标签
+                function createStockTag(stock) {
+                    return `
+                        <div class="flex items-center gap-1 bg-primary-100 text-primary-800 px-2 py-1 rounded" 
+                             data-code="${stock.baostock_code}">
+                            <span>${stock.code} - ${stock.name}</span>
+                            <button type="button" class="remove-stock text-primary-600 hover:text-primary-800">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // 创建搜索结果项
+                function createSearchResultItem(stock) {
+                    return `
+                        <div class="stock-item p-2 hover:bg-gray-100 cursor-pointer" 
+                             data-stock='${JSON.stringify(stock)}'>
+                            <div class="font-medium">${stock.code} - ${stock.name}</div>
+                            <div class="text-sm text-gray-600">${stock.market}</div>
+                        </div>
+                    `;
+                }
+                
+                // 更新隐藏输入框的值
+                function updateHiddenInput() {
+                    const stockCodes = Array.from(document.querySelectorAll('#selectedStocks [data-code]'))
+                        .map(el => {
+                            // 从 baostock_code 中提取纯代码
+                            const code = el.dataset.code;
+                            return code.replace('sh.', '').replace('sz.', '');
+                        });
+                    hiddenInput.value = stockCodes.join(',');
+                }
+                
+                // 添加股票
+                function addStock(stock) {
+                    if (!selectedStocks.has(stock.baostock_code)) {
+                        selectedStocks.add(stock.baostock_code);
+                        selectedStocksContainer.insertAdjacentHTML('beforeend', createStockTag(stock));
+                        updateHiddenInput();
+                    }
+                }
+                
+                // 移除股票
+                function removeStock(code) {
+                    selectedStocks.delete(code);
+                    const tag = selectedStocksContainer.querySelector(`[data-code="${code}"]`);
+                    if (tag) tag.remove();
+                    updateHiddenInput();
+                }
+                
+                // 搜索处理函数
+                function handleSearch() {
+                    const query = searchInput.value.trim();
+                    if (!query) {
+                        searchResults.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const matches = window.searchStocks(query);
+                    if (matches.length > 0) {
+                        searchResults.innerHTML = matches.map(createSearchResultItem).join('');
+                        searchResults.classList.remove('hidden');
+                    } else {
+                        searchResults.innerHTML = '<div class="p-2 text-gray-500">未找到匹配的股票</div>';
+                        searchResults.classList.remove('hidden');
+                    }
+                }
+                
+                // 事件监听
+                searchInput.addEventListener('input', handleSearch);
+                searchInput.addEventListener('focus', handleSearch);
+                
+                // 点击外部关闭搜索结果
+                document.addEventListener('click', (e) => {
+                    if (!searchResults.contains(e.target) && !searchInput.contains(e.target)) {
+                        searchResults.classList.add('hidden');
+                    }
+                });
+                
+                // 选择股票
+                searchResults.addEventListener('click', (e) => {
+                    const stockItem = e.target.closest('.stock-item');
+                    if (stockItem) {
+                        const stock = JSON.parse(stockItem.dataset.stock);
+                        addStock(stock);
+                        searchInput.value = '';
+                        searchResults.classList.add('hidden');
+                    }
+                });
+                
+                // 移除股票
+                selectedStocksContainer.addEventListener('click', (e) => {
+                    if (e.target.closest('.remove-stock')) {
+                        const stockTag = e.target.closest('[data-code]');
+                        removeStock(stockTag.dataset.code);
+                    }
+                });
+            })();
+
+            // 处理表单提交
+            $('#analysisForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                // 从隐藏输入框获取股票代码
+                const stocks = $('#stockSelect').val().split(',').filter(Boolean);
+                const amount = parseFloat($('#investmentAmount').val());
+
+                if (!stocks.length || !amount) {
+                    alert('请选择股票并输入投资金额');
+                    return;
+                }
+
+                $('#progressContainer').removeClass('hidden');
+                $('#resultContainer').addClass('hidden');
+                $('.progress-bar').css('width', '0%');
+
+                let progressInterval = setInterval(function() {
+                    let currentWidth = parseInt($('.progress-bar').css('width'));
+                    let maxWidth = parseInt($('.progress-bar').parent().css('width'));
+                    let newWidth = Math.min(currentWidth + (maxWidth * 0.02), maxWidth * 0.9);
+                    $('.progress-bar').css('width', newWidth + 'px');
+                }, 1000);
+
+                $.ajax({
+                    url: '/api/analyze',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        stocks: stocks,
+                        investment_amount: amount
+                    }),
+                    success: function(response) {
+                        console.log('Raw API Response:', response);
+                        clearInterval(progressInterval);
+                        $('.progress-bar').css('width', '100%');
+                        
+                        setTimeout(function() {
+                            $('#progressContainer').addClass('hidden');
+                            $('#resultContainer').removeClass('hidden');
+                            
+                            // 检查响应格式
+                            if (!response || typeof response !== 'object') {
+                                console.error('Invalid response format:', response);
+                                showError('服务器返回数据格式错误');
+                                return;
+                            }
+
+                            if (!response.success) {
+                                showError(response.message || '分析失败');
+                                return;
+                            }
+
+                            if (!response.data || Object.keys(response.data).length === 0) {
+                                showError('没有分析结果数据');
+                                return;
+                            }
+
+                            let html = '';
+                            
+                            // 添加组合投资总览
+                            if (response.portfolio) {
+                                try {
+                                    html += `
+                                        <div class="bg-primary-50 rounded-xl shadow-sm p-6 mb-6">
+                                            <h4 class="text-lg font-semibold text-gray-900 mb-4">投资组合概览</h4>
+                                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                <div>
+                                                    <div class="text-sm text-gray-500">建议投资总额</div>
+                                                    <div class="font-semibold text-xl">¥${Number(response.portfolio.total_investment).toLocaleString()}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm text-gray-500">平均组合风险</div>
+                                                    <div class="font-semibold text-xl">${Number(response.portfolio.avg_risk).toFixed(2)}%</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm text-gray-500">建议配置股票数</div>
+                                                    <div class="font-semibold text-xl">${response.portfolio.stock_count}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm text-gray-500">组合分散度</div>
+                                                    <div class="font-semibold text-xl">${Number(response.portfolio.diversification).toFixed(1)}%</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                } catch (e) {
+                                    console.error('Error rendering portfolio overview:', e);
+                                }
+                            }
+
+                            // 添加每只股票的分析结果
+                            try {
+                                for (const [stockCode, result] of Object.entries(response.data)) {
+                                    console.log(`Processing stock ${stockCode}:`, result);
+                                    
+                                    if (!result || !result.basic_info || !result.technical_analysis || !result.risk_analysis || !result.trading_suggestions) {
+                                        console.error(`Invalid data structure for stock ${stockCode}:`, result);
+                                        continue;
+                                    }
+
+                                    const basic = result.basic_info;
+                                    const tech = result.technical_analysis;
+                                    const risk = result.risk_analysis;
+                                    const trade = result.trading_suggestions;
+
+                                    // 设置操作建议的样式
+                                    let actionClass = '';
+                                    let actionBg = '';
+                                    switch(trade.action) {
+                                        case '买入':
+                                            actionClass = 'text-green-700';
+                                            actionBg = 'bg-green-50';
+                                            break;
+                                        case '谨慎':
+                                            actionClass = 'text-yellow-700';
+                                            actionBg = 'bg-yellow-50';
+                                            break;
+                                        default:
+                                            actionClass = 'text-gray-700';
+                                            actionBg = 'bg-gray-50';
+                                    }
+
+                                    html += `
+                                        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                                            <div class="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <h4 class="text-lg font-semibold text-gray-900">${stockCode}</h4>
+                                                    <p class="text-sm text-gray-500">当前价格: ¥${Number(basic.current_price).toFixed(2)}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="text-sm text-gray-500">建议投资金额</div>
+                                                    <div class="font-semibold text-xl">¥${Number(basic.suggested_amount).toLocaleString()}</div>
+                                                    <div class="text-sm text-gray-500">${basic.suggested_shares}股</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                <!-- 技术分析 -->
+                                                <div>
+                                                    <h5 class="text-sm font-medium text-gray-700 mb-2">技术分析</h5>
+                                                    <div class="space-y-2">
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">趋势</span>
+                                                            <span class="font-medium">${tech.trend}</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">MA5</span>
+                                                            <span class="font-medium">${Number(tech.ma5).toFixed(2)}</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">MA20</span>
+                                                            <span class="font-medium">${Number(tech.ma20).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 风险分析 -->
+                                                <div>
+                                                    <h5 class="text-sm font-medium text-gray-700 mb-2">风险分析</h5>
+                                                    <div class="space-y-2">
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">风险等级</span>
+                                                            <span class="font-medium">${risk.risk_level}</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">波动率</span>
+                                                            <span class="font-medium">${Number(risk.volatility).toFixed(2)}%</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">夏普比率</span>
+                                                            <span class="font-medium">${Number(risk.sharpe_ratio).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- 交易建议 -->
+                                                <div>
+                                                    <h5 class="text-sm font-medium text-gray-700 mb-2">交易建议</h5>
+                                                    <div class="space-y-2">
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">操作</span>
+                                                            <span class="font-medium ${actionClass} px-2 py-1 rounded ${actionBg}">${trade.action}</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">止损价</span>
+                                                            <span class="font-medium">¥${Number(trade.stop_loss).toFixed(2)}</span>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <span class="text-sm text-gray-500">目标价</span>
+                                                            <span class="font-medium">¥${Number(trade.take_profit).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- K线图容器 -->
+                                            <div class="mt-6 pt-4 border-t">
+                                                <div id="stockChart_${stockCode}" style="height: 300px;"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                            } catch (e) {
+                                console.error('Error processing stock data:', e);
+                                showError('处理数据时出错');
+                                return;
+                            }
+
+                            $('#results').html(html);
+
+                            // 绘制K线图
+                            try {
+                                for (const [stockCode, result] of Object.entries(response.data)) {
+                                    if (result.historical_data) {
+                                        drawStockChart(stockCode, result.historical_data);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error drawing charts:', e);
+                            }
+                        }, 500);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('API Error:', {
+                            status: status,
+                            error: error,
+                            response: xhr.responseText
+                        });
+                        clearInterval(progressInterval);
+                        $('#progressContainer').addClass('hidden');
+                        alert('分析失败: ' + (xhr.responseJSON?.error || '未知错误'));
+                    }
+                });
+            });
+
+            // 添加生成投资建议的辅助函数
+            function generateInvestmentAdvice(technical, trading, risk) {
+                let advice = [];
+                
+                // 基于趋势的建议
+                if (technical.trend.includes('上涨')) {
+                    advice.push('当前处于上涨趋势，可以考虑逢低买入');
+                } else if (technical.trend.includes('下跌')) {
+                    advice.push('当前处于下跌趋势，建议谨慎操作，可以考虑分批建仓');
+                }
+                
+                // 基于交易信号的建议
+                if (trading.action === '买入') {
+                    advice.push(`建议买入，止损位设置在 ${trading.stop_loss.toFixed(2)}，止盈位设置在 ${trading.take_profit.toFixed(2)}`);
+                } else if (trading.action === '观望') {
+                    advice.push('建议暂时观望，等待更好的入场机会');
+                }
+                
+                // 基于风险的建议
+                if (risk.volatility > 50) {
+                    advice.push('波动率较高，建议采用分批建仓策略，控制单次投入比例');
+                }
+                
+                return advice.join('。') + '。';
+            }
+
+            // 在 JavaScript 部分添加图表绘制函数
+            function drawPortfolioCharts(stockResults, totalInvestment) {
+                // 绘制投资组合配置图
+                const portfolioChart = echarts.init(document.getElementById('portfolioAllocation'));
+                const portfolioData = Object.entries(stockResults)
+                    .filter(([_, result]) => result.basic_info.suggested_amount > 0)
+                    .map(([code, result]) => ({
+                        name: code,
+                        value: result.basic_info.suggested_amount
+                    }));
+
+                portfolioChart.setOption({
+                    title: {
+                        text: '投资组合配置',
+                        left: 'center'
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{b}: {c} ({d}%)'
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: {
+                            borderRadius: 10,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: true,
+                            formatter: '{b}\n{d}%'
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: '14',
+                                fontWeight: 'bold'
+                            }
+                        },
+                        data: portfolioData
+                    }]
+                });
+
+                // 绘制风险收益分析图
+                const riskReturnChart = echarts.init(document.getElementById('riskReturnAnalysis'));
+                const riskReturnData = Object.entries(stockResults)
+                    .filter(([_, result]) => result.basic_info.suggested_amount > 0)
+                    .map(([code, result]) => ([
+                        result.risk_analysis.volatility,
+                        result.risk_analysis.sharpe_ratio,
+                        code
+                    ]));
+
+                riskReturnChart.setOption({
+                    title: {
+                        text: '风险收益分析',
+                        left: 'center'
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function(params) {
+                            return `${params.data[2]}<br/>
+                                    波动率: ${params.data[0].toFixed(2)}%<br/>
+                                    夏普比率: ${params.data[1].toFixed(2)}`;
+                        }
+                    },
+                    xAxis: {
+                        name: '波动率(%)',
+                        type: 'value'
+                    },
+                    yAxis: {
+                        name: '夏普比率',
+                        type: 'value'
+                    },
+                    series: [{
+                        type: 'scatter',
+                        data: riskReturnData,
+                        symbolSize: function(data) {
+                            const amount = stockResults[data[2]].basic_info.suggested_amount;
+                            return Math.sqrt(amount / totalInvestment) * 50;
+                        },
+                        label: {
+                            show: true,
+                            formatter: function(params) {
+                                return params.data[2];
+                            },
+                            position: 'top'
+                        }
+                    }]
+                });
+            }
+
+            function drawStockChart(stockCode, stockData) {
+                console.log(`Drawing chart for ${stockCode}:`, stockData);
+                
+                const chartDom = document.getElementById(`stockChart_${stockCode}`);
+                if (!chartDom) {
+                    console.error(`Chart container for ${stockCode} not found`);
+                    return;
+                }
+                
+                // 确保数据存在且格式正确
+                if (!stockData || !stockData.dates || !stockData.klineData) {
+                    console.error(`Invalid data for ${stockCode}`, stockData);
+                    return;
+                }
+                
+                const chart = echarts.init(chartDom);
+                
+                // 处理移动平均线数据，过滤掉NaN值
+                const processMAData = (data) => {
+                    if (!Array.isArray(data)) return [];
+                    return data.map(value => {
+                        // 将NaN替换为null，这样echarts会跳过这些点
+                        return isNaN(value) ? null : value;
+                    });
+                };
+                
+                // 格式化K线数据
+                const klineData = stockData.klineData.map((item, index) => ({
+                    value: item,
+                    itemStyle: {
+                        color: item[0] <= item[3] ? '#00b800' : '#ff0000'
+                    }
+                }));
+                
+                // 设置图表配置
+                const option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'cross'
+                        },
+                        formatter: function(params) {
+                            const data = params[0].data.value;
+                            const maValues = params.slice(1)
+                                .filter(param => param.data !== null)  // 过滤掉null值
+                                .map(param => `${param.seriesName}：${param.data?.toFixed(2) || '-'}`);
+                            
+                            return `${stockData.dates[params[0].dataIndex]}<br/>
+                                    开盘：${data[0]}<br/>
+                                    最高：${data[1]}<br/>
+                                    最低：${data[2]}<br/>
+                                    收盘：${data[3]}<br/>
+                                    ${maValues.join('<br/>')}`;
+                        }
+                    },
+                    legend: {
+                        data: ['K线', 'MA5', 'MA20', 'MA60'],
+                        top: 10
+                    },
+                    grid: {
+                        left: '10%',
+                        right: '10%',
+                        bottom: '15%'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: stockData.dates,
+                        scale: true,
+                        boundaryGap: true,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        splitNumber: 20
+                    },
+                    yAxis: {
+                        scale: true,
+                        splitLine: { show: true }
+                    },
+                    dataZoom: [
+                        {
+                            type: 'inside',
+                            start: 50,
+                            end: 100
+                        },
+                        {
+                            show: true,
+                            type: 'slider',
+                            bottom: '5%',
+                            start: 50,
+                            end: 100
+                        }
+                    ],
+                    series: [
+                        {
+                            name: 'K线',
+                            type: 'candlestick',
+                            data: klineData,
+                            itemStyle: {
+                                color: '#ff0000',
+                                color0: '#00b800',
+                                borderColor: '#ff0000',
+                                borderColor0: '#00b800'
+                            }
+                        },
+                        {
+                            name: 'MA5',
+                            type: 'line',
+                            data: processMAData(stockData.ma5),
+                            smooth: true,
+                            lineStyle: {
+                                opacity: 0.5,
+                                width: 2
+                            },
+                            connectNulls: true  // 连接空值点
+                        },
+                        {
+                            name: 'MA20',
+                            type: 'line',
+                            data: processMAData(stockData.ma20),
+                            smooth: true,
+                            lineStyle: {
+                                opacity: 0.5,
+                                width: 2
+                            },
+                            connectNulls: true  // 连接空值点
+                        },
+                        {
+                            name: 'MA60',
+                            type: 'line',
+                            data: processMAData(stockData.ma60),
+                            smooth: true,
+                            lineStyle: {
+                                opacity: 0.5,
+                                width: 2
+                            },
+                            connectNulls: true  // 连接空值点
+                        }
+                    ]
+                };
+                
+                try {
+                    chart.setOption(option);
+                    console.log(`Chart rendered for ${stockCode}`);
+                } catch (e) {
+                    console.error(`Error rendering chart for ${stockCode}:`, e);
+                }
+                
+                // 添加窗口大小改变时的自适应
+                window.addEventListener('resize', () => {
+                    chart.resize();
+                });
+            }
+
+            // 显示错误信息的辅助函数
+            function showError(message) {
+                $('#results').html(`
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                        <div class="flex">
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">分析失败</h3>
+                                <div class="mt-2 text-sm text-red-700">${message}</div>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+        });
+    </script>
+</body>
+</html> 
